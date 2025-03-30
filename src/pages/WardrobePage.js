@@ -4,14 +4,16 @@ import WardrobeService from '../services/wardrobeService';
 import { toast } from 'react-toastify';
 import ClothingItemCard from '../components/wardrobe/ClothingItemCard';
 import AddClothingItemModal from '../components/wardrobe/AddClothingItemModal';
+import { useNavigate } from 'react-router-dom'; // Import for navigation
 
 const WardrobePage = () => {
-  const { currentUser } = useContext(AuthContext);
+  const { currentUser, isAuthenticated } = useContext(AuthContext);
   const [clothingItems, setClothingItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
-
+  const navigate = useNavigate(); // For redirection if needed
+  
   const categories = [
     { id: 'all', name: 'Tous' },
     { id: 'Top', name: 'Hauts' },
@@ -21,15 +23,29 @@ const WardrobePage = () => {
     { id: 'Accessory', name: 'Accessoires' }
   ];
 
+  // Check authentication first
   useEffect(() => {
-    fetchClothingItems();
-  }, []);
+    if (!isAuthenticated || !currentUser) {
+      toast.error('Veuillez vous connecter pour accéder à votre garde-robe');
+      navigate('/login'); // Redirect to login page
+      return;
+    }
+  }, [isAuthenticated, currentUser, navigate]);
+
+  useEffect(() => {
+    if (isAuthenticated && currentUser) {
+      fetchClothingItems();
+    }
+  }, [activeCategory, isAuthenticated, currentUser]);
 
   const fetchClothingItems = async () => {
     if (!currentUser) return;
     
     setLoading(true);
     try {
+      // Log the token before making the request
+      console.log("Current token:", localStorage.getItem('token'));
+      
       let response;
       
       if (activeCategory === 'all') {
@@ -41,7 +57,23 @@ const WardrobePage = () => {
       setClothingItems(response.data);
     } catch (error) {
       console.error('Error fetching clothing items:', error);
-      toast.error('Erreur lors du chargement de votre garde-robe');
+      
+      // More detailed error handling
+      if (error.response) {
+        switch (error.response.status) {
+          case 401:
+            toast.error('Session expirée. Veuillez vous reconnecter.');
+            navigate('/login');
+            break;
+          case 403:
+            toast.error('Vous n\'avez pas l\'autorisation d\'accéder à cette ressource');
+            break;
+          default:
+            toast.error('Erreur lors du chargement de votre garde-robe');
+        }
+      } else {
+        toast.error('Impossible de contacter le serveur');
+      }
     } finally {
       setLoading(false);
     }
@@ -51,10 +83,6 @@ const WardrobePage = () => {
     setActiveCategory(category);
   };
 
-  useEffect(() => {
-    fetchClothingItems();
-  }, [activeCategory]);
-
   const handleAddItem = async (newItem) => {
     try {
       await WardrobeService.createClothingItem(currentUser.id, newItem);
@@ -63,10 +91,16 @@ const WardrobePage = () => {
       setShowAddModal(false);
     } catch (error) {
       console.error('Error adding clothing item:', error);
-      toast.error('Erreur lors de l\'ajout du vêtement');
+      
+      if (error.response && error.response.status === 403) {
+        toast.error('Vous n\'avez pas l\'autorisation d\'ajouter des vêtements');
+      } else {
+        toast.error('Erreur lors de l\'ajout du vêtement');
+      }
     }
   };
 
+  // Rest of your component remains the same...
   const handleDeleteItem = async (id) => {
     try {
       await WardrobeService.deleteClothingItem(id);
@@ -74,7 +108,12 @@ const WardrobePage = () => {
       setClothingItems(clothingItems.filter(item => item.id !== id));
     } catch (error) {
       console.error('Error deleting clothing item:', error);
-      toast.error('Erreur lors de la suppression du vêtement');
+      
+      if (error.response && error.response.status === 403) {
+        toast.error('Vous n\'avez pas l\'autorisation de supprimer ce vêtement');
+      } else {
+        toast.error('Erreur lors de la suppression du vêtement');
+      }
     }
   };
 
@@ -90,8 +129,14 @@ const WardrobePage = () => {
     }
   };
 
+  // If not authenticated, don't render the component
+  if (!isAuthenticated || !currentUser) {
+    return null;
+  }
+
   return (
     <div className="py-10">
+      {/* Rest of your component JSX remains the same */}
       <header>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <h1 className="text-3xl font-bold leading-tight text-gray-900">Ma Garde-robe</h1>
