@@ -1,11 +1,17 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8080', // Ajustez selon votre environnement
+  baseURL: 'http://localhost:8080/api', // Ajustez selon votre environnement
   headers: {
     'Content-Type': 'application/json'
   }
 });
+
+const token = localStorage.getItem('token'); // Assure-toi que le token est bien stocké quelque part après la connexion
+
+if (token) {
+  api.defaults.headers['Authorization'] = `Bearer ${token}`;
+}
 
 // Intercepteur pour gérer les erreurs
 api.interceptors.response.use(
@@ -16,11 +22,23 @@ api.interceptors.response.use(
     console.error('API Error:', error);
     
     if (error.response && error.response.status === 401) {
-      // Commentez temporairement cette partie pour déboguer sans être redirigé
-      // localStorage.removeItem('user');
-      // window.location.href = '/login';
-      console.error('Authentication error detected but redirection disabled for debugging');
+      console.error('Authentication error detected');
+    }
     
+    return Promise.reject(error);
+  }
+);
+
+// Intercepteur pour gérer les erreurs
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    console.error('API Error:', error);
+    
+    if (error.response && error.response.status === 401) {
+      console.error('Authentication error detected');
     }
     
     return Promise.reject(error);

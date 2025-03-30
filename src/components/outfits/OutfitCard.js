@@ -1,87 +1,77 @@
-import React, { useState, useContext, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../../context/AuthContext';
-import { toast } from 'react-toastify';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { FaHeart, FaRegHeart, FaTrash, FaEdit } from 'react-icons/fa';
 
-const LoginPage = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+const OutfitCard = ({ outfit, onDelete, onToggleFavorite, onEdit }) => {
+  const { id, name, season, weatherConditions, favorite, items = [] } = outfit;
   
-  const { login, currentUser } = useContext(AuthContext);
-  const navigate = useNavigate();
-
-  // Rediriger si déjà connecté
-  useEffect(() => {
-    if (currentUser) {
-      navigate('/dashboard');
-    }
-  }, [currentUser, navigate]);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    // Validation simple
-    if (!username.trim() || !password.trim()) {
-      toast.error('Veuillez remplir tous les champs');
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      console.log('Tentative de connexion avec:', username);
-      const userData = await login(username, password);
-      console.log('Connexion réussie, données reçues:', userData);
-      
-      // Vérifier que les données utilisateur contiennent un ID
-      if (!userData || !userData.id) {
-        console.error('Données utilisateur invalides:', userData);
-        toast.error('Erreur de connexion: données utilisateur incomplètes');
-        setLoading(false);
-        return;
-      }
-      
-      toast.success('Connexion réussie !');
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Login error:', error);
-      
-      // Gestion améliorée des erreurs
-      if (error.response) {
-        // Le serveur a répondu avec un code d'erreur
-        const errorMessage = error.response.data?.message || 'Échec de la connexion. Vérifiez vos identifiants.';
-        toast.error(errorMessage);
-      } else if (error.request) {
-        // Pas de réponse du serveur
-        toast.error('Impossible de contacter le serveur. Vérifiez votre connexion internet.');
-      } else {
-        // Erreur lors de la préparation de la requête
-        toast.error('Erreur lors de la connexion: ' + error.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Choisir la première image d'un vêtement de la tenue comme aperçu
+  const previewImage = items && items.length > 0 && items[0].localImagePath 
+    ? `http://localhost:8080/uploads/${items[0].localImagePath}` 
+    : null;
 
   return (
-    <div className="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-          Connectez-vous à votre compte
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Ou{' '}
-          <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500">
-            créez un nouveau compte
-          </Link>
-        </p>
+    <div className="bg-white overflow-hidden shadow rounded-lg">
+      <div className="relative h-48 bg-gray-100 overflow-hidden">
+        {previewImage ? (
+          <img
+            src={previewImage}
+            alt={name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <svg className="h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+            </svg>
+          </div>
+        )}
+        <button
+          onClick={onToggleFavorite}
+          className="absolute top-2 right-2 p-2 bg-white rounded-full shadow hover:bg-gray-100"
+        >
+          {favorite ? (
+            <FaHeart className="h-5 w-5 text-red-500" />
+          ) : (
+            <FaRegHeart className="h-5 w-5 text-gray-500" />
+          )}
+        </button>
       </div>
-
-      {/* Le reste de votre JSX reste inchangé */}
-      {/* ... */}
+      <div className="px-4 py-4">
+        <h3 className="text-lg font-semibold text-gray-900">{name}</h3>
+        <div className="mt-2 flex items-center text-sm text-gray-500 space-x-2">
+          <span className="inline-block px-2 py-1 bg-gray-100 rounded-md">{season}</span>
+          {weatherConditions && (
+            <span className="inline-block px-2 py-1 bg-gray-100 rounded-md">{weatherConditions}</span>
+          )}
+        </div>
+        <div className="mt-4 flex justify-between items-center">
+          <Link
+            to={`/outfits/${id}`}
+            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          >
+            Voir détails
+          </Link>
+          <div className="flex space-x-2">
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                className="p-2 rounded-md text-gray-500 hover:text-primary-600 hover:bg-gray-100"
+              >
+                <FaEdit className="h-5 w-5" />
+              </button>
+            )}
+            <button
+              onClick={onDelete}
+              className="p-2 rounded-md text-gray-500 hover:text-red-600 hover:bg-gray-100"
+            >
+              <FaTrash className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default LoginPage;
+export default OutfitCard;
